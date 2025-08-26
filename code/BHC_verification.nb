@@ -1,0 +1,125 @@
+(* ============================================= *)
+(* ONE-SHOT: Clean run + safe report (Cloud)     *)
+(* ============================================= *)
+
+(* 0) Hard reset and (just in case) silence the settag warning *)
+Remove["Global`*"]; $HistoryLength = 0;
+
+
+(* 1) Constants *)
+c    = 3.0*10^8;                       (* m/s *)
+G    = 6.674*10^-11;                   (* m^3 kg^-1 s^-2 *)
+H0   = 70*1000/(3.086*10^22);          (* s^-1 *)
+lp   = 1.616*10^-35;                   (* m *)
+kB   = 1.380649*10^-23;
+hbar = 1.054571817*10^-34;
+tGyr = 3600*24*365*10^9;               (* s per Gyr *)
+
+(* 2) Model params (use SAFE names—no leading underscores) *)
+yEff = 0.02;
+f    = 0.1;             (* Gyr^-1 *)
+Cfrac= 0.91;
+iLocalFrac = 0.8;
+rFrac10 = 0.27;         (* r/R_h for z=10 *)
+tauZ7   = 3.30;         (* Gyr *)
+Troom   = 300;          (* K *)
+
+(* 3) Geometry / Λ split *)
+rhoCrit = 3 H0^2/(8 Pi G);
+Rh  = c/H0;
+Mtot= (4/3) Pi rhoCrit Rh^3;
+rs  = 2 G Mtot/c^2;
+
+LambdaObs  = 1.105*10^-52;
+LambdaGeom = 1.5 (H0/c)^2;
+LambdaInfo = LambdaObs - LambdaGeom;
+
+(* 4) Proper time and ΛCDM ages *)
+tau10 = (1/H0) * ArcSin[rFrac10] / tGyr;    (* ≈ 3.8 Gyr *)
+
+ageAtZ[z_] := NIntegrate[1/(a H0 Sqrt[0.3 a^-3 + 0.7]), {a, 0, 1/(1+z)}]/tGyr;
+lookbackAtZ[z_] := NIntegrate[1/(a H0 Sqrt[0.3 a^-3 + 0.7]), {a, 1/(1+z), 1}]/tGyr;
+
+ageLCDM10      = ageAtZ[10];       (* ≈ 0.48 Gyr *)
+lookbackLCDM10 = lookbackAtZ[10];  (* ≈ 13.0 Gyr *)
+
+(* 5) Metallicity + Dn4000  (safe variable names) *)
+Zlinear[t_] := yEff * Log[1/(1 - f*t)];      (* μ = 1 − f t *)
+Zexp[t_]    := yEff * f * t;                 (* μ = e^{−f t} *)
+
+Z10Linear = N[Zlinear[tau10]];               (* ~0.00962 *)
+Z10Exp    = N[Zexp[tau10]];                  (* ~0.0076  *)
+
+DnBase[t_] := 1.6 + 0.2*Log10[t];
+DnZ7Linear = N[ DnBase[tauZ7] * (1 + 0.3*Log10[ Zlinear[tauZ7]/yEff ]) ];
+
+(* 6) Falsifiability / info *)
+zDotAt1   = -1.23*10^-10;                    (* yr^-1 *)
+ImaxBits  = N[ Pi (Rh/lp)^2/Log[2] ];
+gamma0    = kB*Troom/hbar;
+gammaTot  = N[ gamma0 * (Cfrac/(1 - Cfrac)) * iLocalFrac * ProductLog[1.0] ];
+decoT     = N[ 1/gammaTot ];
+
+(* 7) Plots *)
+pltTau = Plot[(1/H0)*ArcSin[x]/tGyr, {x,0,0.5},
+  AxesLabel->{"r/R_h","τ (Gyr)"}, PlotRange->All,
+  PlotLabel->"Proper time vs r/R_h"
+];
+pltZlin = Plot[Zlinear[t], {t,0,5},
+  AxesLabel->{"τ (Gyr)","Z"}, PlotRange->All,
+  PlotLabel->"Closed-box (μ = 1 − f τ): Z vs age"
+];
+pltDnlin = Plot[DnBase[t]*(1 + 0.3*Log10[Zlinear[t]/yEff]), {t,10^-6,5},
+  AxesLabel->{"τ (Gyr)","Dn4000"}, PlotRange->All,
+  PlotLabel->"Dn4000 (with Z_linear) vs age"
+];
+
+(* 8) Build report with EVALUATED numbers only *)
+nb = CreateDocument[{}, WindowTitle -> "Paper Math Verification (Cloud)"];
+sec[s_] := NotebookWrite[nb, Cell[s, "Section"]];
+sub[s_] := NotebookWrite[nb, Cell[s, "Subsection"]];
+out[e_] := NotebookWrite[nb, Cell[BoxData @ ToBoxes @ e, "Output"]];
+graf[g_]:= NotebookWrite[nb, Cell[BoxData @ ToBoxes @ g, "Output"]];
+
+sec["Constants"];
+out @ Row[{"c = ", N[c]}];
+out @ Row[{"G = ", N[G]}];
+out @ Row[{"H0 = ", N[H0], " s^-1"}];
+
+sec["Derived & Verifications"];
+out @ Row[{"rs − Rh = ", NumberForm[rs - Rh, {3,4}], " m  (≈0 up to float)"}];
+out @ Row[{"LambdaGeom = ", ScientificForm[LambdaGeom,3], " m^-2"}];
+out @ Row[{"LambdaInfo = ", ScientificForm[LambdaInfo,3], " m^-2"}];
+out @ Row[{"LambdaObs  = ", ScientificForm[LambdaObs, 3], " m^-2"}];
+out @ Row[{"τ(z=10)   = ", NumberForm[tau10, {3,2}], " Gyr"}];
+out @ Row[{"age_LCDM(z=10) = ", NumberForm[ageLCDM10, {3,2}], " Gyr  (age at z)"}];
+out @ Row[{"lookback_LCDM(z=10) = ", NumberForm[lookbackLCDM10, {3,2}], " Gyr"}];
+
+sub["Closed-Box Metallicity (two conventions)"];
+out @ Row[{"Z_linear (μ = 1 − f τ) @ z=10:  ",
+           NumberForm[Z10Linear,{3,5}],
+           "   (~", NumberForm[Z10Linear/0.02,{3,3}], " Z\[CircleDot])"}];
+out @ Row[{"Z_exp    (μ = e^{−f τ}) @ z=10: ",
+           NumberForm[Z10Exp,{3,5}],
+           "   (~", NumberForm[Z10Exp/0.02,{3,3}], " Z\[CircleDot])"}];
+
+sub["Dn4000 at z ≈ 7"];
+out @ Row[{"Dn(z~7) with Z_linear: ", NumberForm[DnZ7Linear,{3,2}], "  (target ≥ 1.5)"}];
+
+sub["Falsifiability"];
+out @ Row[{"Redshift drift at z=1 (paper):  ", zDotAt1, "  yr^-1"}];
+
+sub["Information & Decoherence"];
+out @ Row[{"Imax (bits) = ", ScientificForm[ImaxBits,3]}];
+out @ Row[{"γ_tot ≈ ", ScientificForm[gammaTot,3], " s^-1 ;   τ_decoh ≈ ", ScientificForm[decoT,3], " s"}];
+
+sec["Plots"];
+graf @ pltTau;
+graf @ pltZlin;
+graf @ pltDnlin;
+
+CloudSave[nb, CloudObject["Paper_Math_Verification.nb"]];
+Print["Saved to Wolfram Cloud as Paper_Math_Verification.nb"];
+
+(* (optional) turn message back on if you like *)
+
