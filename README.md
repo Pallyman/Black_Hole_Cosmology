@@ -7,9 +7,14 @@ Curtis Kingsley (2025)
 
 ---
 
-## 📄 Paper
-- [Main PDF](A_Black_Hole_Universe_at_Information_Saturation_II__Proper_Time_Age_Gradient_and_JWST_Predictions.pdf)
+# Black Hole Cosmology
 
+## Main Paper
+[A Black Hole Universe at Information Saturation III: Proper Time Age Gradient and JWST Predictions](./A_Black_Hole_Universe_at_Information_Saturation_III__Proper_Time_Age_Gradient_and_JWST_Predictions.pdf)
+
+## Supplementary Materials
+- [Convergence Mathematics](./supplement/C_Convergence_Mathematica.pdf)
+- [Convergence Code](./code/C_convergence_code.txt)
 ---
 
 ## 📊 Figures
